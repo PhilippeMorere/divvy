@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+from multiprocessing import freeze_support
 import argparse
 import os
 import re
@@ -11,7 +11,7 @@ Possible_options = ["outdir", "workdir"]
 
 def checkNodeExists(config, name):
     if not name in config:
-        print "Error: configuration file must include a \"{}\" node.".format(name)
+        print(r"Error: configuration file must include a \"{}\" node.".format(name))
         sys.exit()
 
 def checkConfig(config):
@@ -78,7 +78,7 @@ def main():
     
     # Check if config file exists
     if not os.path.isfile(args.config):
-        print "Error: configuration file {} does not exist.".format(args.config)
+        print("Error: configuration file {} does not exist.".format(args.config))
         sys.exit()
     
     # Parse Yaml file and verify config
@@ -90,13 +90,13 @@ def main():
     tasks = parseToTasks(config)
 
     #TODO: print info and start time
-    print "Starting experiment."
+    print("Starting experiment.")
     
     # Run the taks in parallel
     pt = ParallelTasks()
     pt.run(tasks, config["cpus"])
 
-    print "All done."
+    print("All done.")
     return 0
 
 if __name__ == "__main__":

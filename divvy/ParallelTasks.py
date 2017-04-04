@@ -42,7 +42,7 @@ class ParallelTasks():
         print('Results:')
         for i in range(nbTasks):
             r = done_queue.get()
-            print '\t(Progress: {:>4.4}%)'.format(100.0 * i / float(nbTasks))
+            print('\t(Progress: {:>4.4}%)'.format(100.0 * i / float(nbTasks)))
     
         # Tell child processes to stop
         for i in range(noProcs):

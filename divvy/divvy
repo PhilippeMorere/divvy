@@ -1,2 +1,3 @@
 import divvy.RunExperiment
-divvy.RunExperiment.main()
+if __name__ == "__main__":
+	divvy.RunExperiment.main()

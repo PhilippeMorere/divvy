@@ -4,8 +4,8 @@ experiment:
         Describing what the experiment is about and what the experimenter
         aims to achieve.
     options:
-        outdir: /home/phil/workspace/sandbox/logbook/example/
-        workdir: /home/phil/workspace/sandbox/logbook
+        outdir: /path/to/data/dir/
+        workdir: /path/to/your/project
     replacements:
         param1: 0.2
     repeat: 10

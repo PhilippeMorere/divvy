@@ -1,9 +1,6 @@
 from setuptools import setup
 
 setup(
-    # basic stuff here
-    scripts = [
-        'logbook'
-    ],
+    scripts = ['divvy'],
     packages=['src']
 )

@@ -1,4 +1,4 @@
-Logbook
+Divvy
 ==========================
 Description here
 

@@ -1,3 +1,2 @@
-print "plop"
 import src.runExperiment
 src.runExperiment.main()

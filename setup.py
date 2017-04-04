@@ -8,6 +8,6 @@ setup(name='divvy',
       author_email='',
       license='MIT',
       packages=['divvy'],
-      scripts = ['divvy'],
+      scripts = ['divvy/divvy'],
       install_requires=[],
       zip_safe=False)

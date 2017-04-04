@@ -1,0 +1,2 @@
+import divvy.RunExperiment
+divvy.RunExperiment.main()

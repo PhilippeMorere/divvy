@@ -1,0 +1,14 @@
+experiment:
+    name: Dummy experiment
+    description:
+        Describing what the experiment is about and what the experimenter
+        aims to achieve.
+    options:
+        outdir: /home/phil/workspace/sandbox/logbook/example/
+        workdir: /home/phil/workspace/sandbox/logbook
+    replacements:
+        param1: 0.2
+    repeat: 10
+    cpus: 3
+    commands:
+        - python example/dummyExperiment.py ${param1}

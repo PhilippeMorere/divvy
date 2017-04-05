@@ -3,6 +3,10 @@ Divvy
 Description here
 
 ## Installation
+### Dependencies
+* python-yaml
+
+### Divvy
 Global installation:
 ```
 sudo python setup.py install

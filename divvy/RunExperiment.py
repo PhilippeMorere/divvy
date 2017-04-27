@@ -5,6 +5,7 @@ import os
 import re
 import yaml
 import sys
+import numbers
 from ParallelTasks import ParallelTasks
 
 Possible_options = ["outdir", "workdir"]
@@ -29,16 +30,32 @@ def parseReplacements(config):
     """Parses the replacements of the program."""
     replacements = {}
     for key, val in config.items():
-        replacements[key] = str(val)
+        if isinstance(val, str):
+            # Escape string so that it is not divided into multiple command arguments
+            replacements[key] = "\"{}\"".format(val)
+        else:
+            replacements[key] = val
     return replacements
 
 def parseCommands(config, replacements):
     """Parses the commands of the program."""
-    commands = []
-    for cmd in config:
-        for key, val in replacements.items():
-            cmd = re.sub("\$\{%s\}" % key, val, cmd)
-        commands.append(cmd)
+    commands = [c for c in config]
+    for key, val in replacements.items():
+        # This is the case for regular number parameters
+        if isinstance(val, (numbers.Number, str)):
+            for i in range(len(commands)):
+                commands[i] = re.sub("\$\{%s\}" % key, str(val), commands[i])
+        else: # This is the case for trying several parameter values
+            newCommands = []
+            for cmd in commands:
+                if cmd.find(key) == -1:
+                    newCommands.append(cmd)
+                else:
+                    for v in val:
+                        newCmd = re.sub("\$\{%s\}" % key, str(v), cmd)
+                        newCommands.append(newCmd)
+            commands = newCommands
+
     return commands
 
 def parseOptions(config, replacements):
@@ -48,9 +65,10 @@ def parseOptions(config, replacements):
         if opt in config:
             opt_value = config[opt]
             for key, val in replacements.items():
-                opt_value = re.sub("\$\{%s\}" % key, val, opt_value)
-            params[opt] = opt_value
-            replacements[opt] = opt_value
+                if isinstance(val, numbers.Number):
+                    opt_value = re.sub("\$\{%s\}" % key, str(val), opt_value)
+                    params[opt] = opt_value
+                    replacements[opt] = opt_value
         else:
             params[opt] = None
 

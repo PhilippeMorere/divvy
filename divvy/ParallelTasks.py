@@ -1,5 +1,6 @@
 from multiprocessing import Process, Queue, current_process, freeze_support
 from subprocess import call
+import shlex
 
 class ParallelTasks():
     def __init__(self):
@@ -7,7 +8,7 @@ class ParallelTasks():
     
     def execute(self, cmd):
         """ Executes system call with proper arguments"""
-        args = cmd.split(" ")
+        args = shlex.split(cmd)
         res = call(args)
         return res
 

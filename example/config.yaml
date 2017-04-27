@@ -4,11 +4,13 @@ experiment:
         Describing what the experiment is about and what the experimenter
         aims to achieve.
     options:
-        outdir: /path/to/data/dir/
-        workdir: /path/to/your/project
+        outdir: /tmp
+        workdir: /home/phil/workspace/sandbox/divvy/
     replacements:
         param1: 0.2
-    repeat: 10
+        param2: [1,2,3,4]
+        param3: "hello world" #[0.0, 2.0]
+    repeat: 5
     cpus: 3
     commands:
-        - python example/dummyExperiment.py ${param1}
+        - python example/dummyExperiment.py ${param1} ${param2} ${param3}

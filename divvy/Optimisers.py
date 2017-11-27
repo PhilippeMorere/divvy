@@ -2,6 +2,8 @@ import numpy as np
 import math
 
 
+# TODO: Add BO
+
 class AbsOptimiser:
     def __init__(self, low, high, logScale=False):
         """

@@ -22,4 +22,4 @@ experiment:
             commands:
                 - python example/dummyExperiment.py ${x} ${y} ${z}
         repeat: 10
-    workers: 1
+    workers: 2

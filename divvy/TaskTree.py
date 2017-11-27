@@ -150,8 +150,7 @@ class ComparisonNode(Node):
                             bestParams, child.commands), bestParams)
                         self.runningTasks.append(t)
                         tasks.append(t)
-                    del self.children[-1]
-
+                    del self.children[i]
             # If last done was removed, mark as done
             if len(self.children) == 0:
                 self.done = True

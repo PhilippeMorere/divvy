@@ -118,6 +118,7 @@ def printComparisonSummary(root):
     colNames = keys + ['score', 'sd']
     Row = namedtuple('Row', colNames)
 
+    print(paramVals)
     # Populate table
     data = []
     for i in sortedIdx:
@@ -171,9 +172,13 @@ def main():
             tasks = root.getNextTasks(fixedParams)
             pt.addTasks(tasks)
 
-        # If there is nothing else to run, stop workers after
+        # If there is nothing else to run, stop workers
         if root.isDone():
             pt.end()
+            # Gather remaining unfinished tasks
+            for task in pt.getFinishedTask():
+                root.updateFinishedTask(task)
+            break
 
         # Wait for tasks to finish
         try:

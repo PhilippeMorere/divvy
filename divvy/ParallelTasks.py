@@ -93,6 +93,7 @@ class ParallelTasks():
                 yield task
 
     def end(self):
+        print("STOP!")
         # Make them stooop!
         for q in self.taskQueues:
             q.put('STOP')

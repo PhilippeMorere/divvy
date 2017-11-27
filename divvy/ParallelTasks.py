@@ -1,16 +1,17 @@
 from multiprocessing import Process, Queue
 from subprocess import check_output
-import shlex
 
 
 class Task():
     idn = 0
 
-    def __init__(self, commands):
+    def __init__(self, commands, params, loc=None):
         self.uniqueId = Task.idn
         Task.idn += 1
         self.commands = commands
-        self.results = None
+        self.params = params
+        self.score = None
+        self.loc = loc
 
 
 class ParallelTasks():
@@ -29,28 +30,36 @@ class ParallelTasks():
             p.start()
 
     def _execute(self, cmd):
-        """ Executes system call with proper arguments"""
-        args = shlex.split(cmd)
-        ret = check_output(args, shell=True)
-        return ret
+        """
+        Executes system call with proper arguments
+        """
+        # Run commmand
+        ret = check_output(cmd, shell=True)
+
+        # Parse score
+        score = 0
+        items = ret.split(b"\n")
+        score = float(items[-2])
+        return score
 
     def _worker(self, inputQueue, outputQueue, args):
-        """ Function run by worker processes """
+        """
+        Function run by worker processes
+        """
         for task in iter(inputQueue.get, 'STOP'):
-            print("Got command", task.commands)
             # Arguments are commands to execute
-            results = []
+            scores = []
 
             # Single command case
             if isinstance(task.commands, str):
-                results.append(self._execute(task.commands))
+                scores.append(self._execute(task.commands))
             # Multiple commands case
             else:
                 for command in task.commands:
-                    results.append(self._execute(command))
+                    scores.append(self._execute(command))
 
-            # TODO: Parse output
-            task.results = results
+            # Only keep last score
+            task.score = scores[-1]
             outputQueue.put(task)
 
         # Notify worker is done
@@ -62,7 +71,7 @@ class ParallelTasks():
 
     def addTask(self, task):
         minSize = self.taskQueues[0].qsize()
-        minQueue = self.taskQueues
+        minQueue = self.taskQueues[0]
 
         # Find an free worker
         for q in self.taskQueues:

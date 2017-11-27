@@ -1,8 +1,12 @@
-### This is a dummy experiment file
-# This program takes one argument, computes its square and logs it to a file
+"""
+This is a dummy experiment file
+"""
 import sys
+import math
 
-print "Arguments are: {}".format(sys.argv)
 x = float(sys.argv[1])
-y = x * x
-sys.exit("result: {}".format(y))
+y = float(sys.argv[2])
+z = float(sys.argv[3])
+print("args: ", x, y, z)
+ret = math.sin(z*x + y)
+print(ret)

@@ -1,100 +1,141 @@
 #!/usr/bin/env python
 import argparse
 import os
-import re
 import yaml
 import sys
-import numbers
+import numpy as np
 from ParallelTasks import ParallelTasks
-
-Possible_options = ["outdir", "workdir"]
+from TaskTree import ComparisonNode, OptimisedNode
+from utils import pprinttable
+from collections import namedtuple
 
 
 def checkNodeExists(config, name):
     if name not in config:
-        print(r"Error: configuration file must include a \"{}\" node.".
-              format(name))
-        sys.exit()
+        raise ValueError("Tag {} must be specified.".format(name))
 
 
 def checkConfig(config):
-    """ Check config file for missing nodes """
+    """ Check config file for correct syntax """
+    # Mandatory nodes
     checkNodeExists(config, "name")
-    checkNodeExists(config, "options")
-    checkNodeExists(config["options"], "outdir")
-    checkNodeExists(config, "commands")
-    if "repeat" not in config:
-        config["repeat"] = 1
-    if "cpus" not in config:
-        config["cpus"] = 1
+    checkNodeExists(config, "workers")
+
+    # Fill in default values
+    if "workers" not in config:
+        config["workers"] = 1
 
 
-def parseReplacements(config):
-    """Parses the replacements of the program."""
-    replacements = {}
-    for key, val in config.items():
+def parseParams(elem):
+    """Parses the params of the program."""
+    params = {}
+    for key, val in elem.items():
         if isinstance(val, str):
             # Escape string so that it is not divided into multiple command
             # arguments
-            replacements[key] = "\"{}\"".format(val)
+            params[key] = "\"{}\"".format(val)
         else:
-            replacements[key] = val
-    return replacements
-
-
-def parseCommands(config, replacements):
-    """Parses the commands of the program."""
-    commands = [c for c in config]
-    for key, val in replacements.items():
-        # This is the case for regular number parameters
-        if isinstance(val, (numbers.Number, str)):
-            for i in range(len(commands)):
-                commands[i] = re.sub("\$\{%s\}" % key, str(val), commands[i])
-        else:  # This is the case for trying several parameter values
-            newCommands = []
-            for cmd in commands:
-                if cmd.find(key) == -1:
-                    newCommands.append(cmd)
-                else:
-                    for v in val:
-                        newCmd = re.sub("\$\{%s\}" % key, str(v), cmd)
-                        newCommands.append(newCmd)
-            commands = newCommands
-
-    return commands
-
-
-def parseOptions(config, replacements):
-    """Parses the options of the program."""
-    params = {}
-    for opt in Possible_options:
-        if opt in config:
-            opt_value = config[opt]
-            for key, val in replacements.items():
-                if isinstance(val, numbers.Number):
-                    opt_value = re.sub("\$\{%s\}" % key, str(val), opt_value)
-                    params[opt] = opt_value
-                    replacements[opt] = opt_value
-        else:
-            params[opt] = None
-
-    for opt in config:
-        if opt not in Possible_options:
-            print("Error: Unrecognized option \"{0}\" enountered".format(opt))
-            sys.exit()
+            params[key] = val
     return params
 
 
-def parseToTasks(config):
-    """ Parses commands from config file to a list of tasks to be executed"""
-    replacements = parseReplacements(config["replacements"]
-                                     if "replacements" in config else {})
-    params = parseOptions(config["options"], replacements)
-    commands = parseCommands(config["commands"], replacements)
+def parseNode(elem, optimisedNode=False):
+    # Check structure
+    checkNodeExists(elem, "params")
+    if "optimised" not in elem and "commands" not in elem:
+        raise ValueError("All leaf nodes must include a \"commands\" tag.")
+    if optimisedNode and "optimiser" not in elem:
+        raise ValueError("Optimiser nodes must include an \"optimiser\" tag")
 
-    if params["workdir"] is not None:
-        os.chdir(params["workdir"])
-    return [tuple(commands)] * config["repeat"]
+    # Parse
+    repeat = 1
+    if "repeat" in elem:
+        repeat = elem["repeat"]
+    commands = None
+    if "commands" in elem:
+        commands = elem["commands"]
+    optParams = None
+    if "opt_params" in elem:
+        optParams = elem["opt_params"]
+    params = elem["params"]
+
+    children = None
+    if "optimised" in elem:
+        if isinstance(elem["optimised"], list):
+            children = [parseNode(e, True) for e in elem["optimised"]]
+        else:
+            children = [parseNode(elem["optimised"], True)]
+
+    if optimisedNode:
+        optimiser = elem["optimiser"]
+        return OptimisedNode(optimiser, optParams, params, children, commands,
+                             repeat)
+    else:
+        return ComparisonNode(params, children, commands, repeat)
+
+
+def parseToTaskTree(config):
+    # Parse fixed parameters
+    fixedParams = parseParams(config["fixed"] if "fixed" in config else {})
+
+    # Parse tree root
+    if "comparison" in config:
+        return parseNode(config["comparison"]), fixedParams
+    elif "optimised" in config:
+        return parseNode(config["optimised"], True), fixedParams
+    else:
+        raise ValueError("Could not either elements \"comparison\" or " +
+                         "\"optimised\" in \"experiment\"")
+
+
+def printComparisonSummary(root):
+    paramVals = [None] * len(root.allParamVals)
+    scores = [[] for _ in range(len(root.allParamVals))]
+
+    # Populate param and score list
+    lenParamVals = 0
+    for task in root.finishedTasks:
+        if task.params in paramVals:
+            idx = paramVals.index(task.params)
+        else:
+            idx = lenParamVals
+            lenParamVals += 1
+            paramVals[idx] = task.params
+        scores[idx].append(task.score)
+
+    # Compute mean and std
+    means = [0.0] * len(scores)
+    stds = [0.0] * len(scores)
+    for i, scoreList in enumerate(scores):
+        means[i] = np.mean(scoreList)
+        stds[i] = np.std(scoreList)
+
+    # Sort by mean socre
+    sortedIdx = np.argsort(means)[::-1]
+
+    # Column names
+    keys = list(paramVals[0].keys())
+    colNames = keys + ['score', 'sd']
+    Row = namedtuple('Row', colNames)
+
+    # Populate table
+    data = []
+    for i in sortedIdx:
+        cells = []
+        for k in keys:
+            cells.append("{}".format(paramVals[i][k]))
+        cells.append("{0:0.4f}".format(means[i]))
+        cells.append("{0:0.4f}".format(stds[i]))
+        data.append(Row(*cells))
+
+    # Print table
+    print("\n#####################\n# Comparison summary:" +
+          "\n#####################\n")
+    pprinttable(data)
+
+
+def printOptimisationSummary(root):
+    pass
 
 
 def main():
@@ -114,17 +155,41 @@ def main():
     config = yamlTree["experiment"]
     checkConfig(config)
 
-    # Parse Yaml config to task list
-    tasks = parseToTasks(config)
+    # Parse Yaml config to tree
+    root, fixedParams = parseToTaskTree(config)
 
+    # TODO: Change working directory if workdir specified
     # TODO: print info and start time
+    # TODO: There's a bug with using multiple workers!
     print("Starting experiment.")
 
-    # Run the taks in parallel
-    pt = ParallelTasks()
-    pt.run(tasks, config["cpus"])
+    # Run all commands
+    pt = ParallelTasks(config["workers"])
+    while True:
+        # Add all parallel tasks
+        while root.isTaskReady():
+            tasks = root.getNextTasks(fixedParams)
+            pt.addTasks(tasks)
+
+        # If there is nothing else to run, stop workers after
+        if root.isDone():
+            pt.end()
+
+        # Wait for tasks to finish
+        try:
+            task = next(pt.getFinishedTask())
+            root.updateFinishedTask(task)
+        except StopIteration:
+            # All workers are node
+            break
 
     print("All done.")
+
+    # Print summary information
+    if isinstance(root, ComparisonNode):
+        printComparisonSummary(root)
+    else:
+        printOptimisationSummary(root)
     return 0
 
 

@@ -3,14 +3,23 @@ experiment:
     description:
         Describing what the experiment is about and what the experimenter
         aims to achieve.
-    options:
-        outdir: /tmp
-        workdir: /home/phil/workspace/sandbox/divvy/
-    replacements:
-        param1: 0.2
-        param2: [1,2,3,4]
-        param3: "hello world" #[0.0, 2.0]
-    repeat: 5
-    cpus: 3
-    commands:
-        - python example/dummyExperiment.py ${param1} ${param2} ${param3}
+    workdir: /home/phil/workspace/sandbox/divvy/
+    fixed:
+        a: 0.1
+        b: 20.0
+        c: "ABC"
+    comparison:
+        params:
+          x: [0.01, 0.1, 1.0, 10.0]
+        optimised:
+            optimiser: "GridSearch"
+            opt_params:
+                gridRes: 5
+            params:
+                y: linear(0, 3.14)
+                z: logscale(1, 10)
+            repeat: 3
+            commands:
+                - python example/dummyExperiment.py ${x} ${y} ${z}
+        repeat: 10
+    workers: 1

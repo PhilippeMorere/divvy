@@ -3,10 +3,11 @@ import argparse
 import os
 import yaml
 import sys
+import time
 import numpy as np
 from ParallelTasks import ParallelTasks
 from TaskTree import ComparisonNode, OptimisedNode
-from utils import pprinttable
+from utils import pprinttable, prettyTime
 from collections import namedtuple
 
 
@@ -39,7 +40,7 @@ def parseParams(elem):
     return params
 
 
-def parseNode(elem, optimisedNode=False):
+def parseNode(elem, workdir, optimisedNode=False):
     # Check structure
     checkNodeExists(elem, "params")
     if "optimised" not in elem and "commands" not in elem:
@@ -62,27 +63,28 @@ def parseNode(elem, optimisedNode=False):
     children = None
     if "optimised" in elem:
         if isinstance(elem["optimised"], list):
-            children = [parseNode(e, True) for e in elem["optimised"]]
+            children = [parseNode(e, workdir, True) for e in elem["optimised"]]
         else:
-            children = [parseNode(elem["optimised"], True)]
+            children = [parseNode(elem["optimised"], workdir, True)]
 
     if optimisedNode:
         optimiser = elem["optimiser"]
         return OptimisedNode(optimiser, optParams, params, children, commands,
-                             repeat)
+                             repeat, workdir)
     else:
-        return ComparisonNode(params, children, commands, repeat)
+        return ComparisonNode(params, children, commands, repeat, workdir)
 
 
 def parseToTaskTree(config):
     # Parse fixed parameters
     fixedParams = parseParams(config["fixed"] if "fixed" in config else {})
+    workdir = (config["workdir"] if "workdir" in config else None)
 
     # Parse tree root
     if "comparison" in config:
-        return parseNode(config["comparison"]), fixedParams
+        return parseNode(config["comparison"], workdir), fixedParams
     elif "optimised" in config:
-        return parseNode(config["optimised"], True), fixedParams
+        return parseNode(config["optimised"], workdir, True), fixedParams
     else:
         raise ValueError("Could not either elements \"comparison\" or " +
                          "\"optimised\" in \"experiment\"")
@@ -118,7 +120,6 @@ def printComparisonSummary(root):
     colNames = keys + ['score', 'sd']
     Row = namedtuple('Row', colNames)
 
-    print(paramVals)
     # Populate table
     data = []
     for i in sortedIdx:
@@ -159,10 +160,9 @@ def main():
     # Parse Yaml config to tree
     root, fixedParams = parseToTaskTree(config)
 
-    # TODO: Change working directory if workdir specified
-    # TODO: print info and start time
-    # TODO: There's a bug with using multiple workers!
-    print("Starting experiment.")
+    # TODO: Syntax/config checking before experiments start
+    print("Starting experiments.")
+    startTime = time.time()
 
     # Run all commands
     pt = ParallelTasks(config["workers"])
@@ -188,7 +188,8 @@ def main():
             # All workers are node
             break
 
-    print("All done.")
+    print("\nAll done.\nTime elapsed: {}.".
+          format(prettyTime(time.time() - startTime)))
 
     # Print summary information
     if isinstance(root, ComparisonNode):

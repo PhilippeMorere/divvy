@@ -5,13 +5,14 @@ from subprocess import check_output
 class Task():
     idn = 0
 
-    def __init__(self, commands, params, loc=None):
-        self.uniqueId = Task.idn
+    def __init__(self, commands, params, loc=None, wd=None):
+        self.uniqueId = Task.idn  # Unique identifier
         Task.idn += 1
-        self.commands = commands
-        self.params = params
-        self.score = None
-        self.loc = loc
+        self.commands = commands  # List of commands
+        self.params = params  # Parameter dictionary corresponding to commands
+        self.score = None  # Score after command was run
+        self.wd = wd  # Working directory
+        self.loc = loc  # Location used by optimisers (parameter values)
 
 
 class ParallelTasks():
@@ -29,12 +30,15 @@ class ParallelTasks():
                         args=(self.taskQueues[i], self.doneQueue, None))
             p.start()
 
-    def _execute(self, cmd):
+    def _execute(self, cmd, wd):
         """
-        Executes system call with proper arguments
+        Executes system call with given command and working directory
         """
         # Run commmand
-        ret = check_output(cmd, shell=True)
+        if wd is None:
+            ret = check_output(cmd, shell=True)
+        else:
+            ret = check_output(cmd, shell=True, cwd=wd)
 
         # Parse score
         score = 0
@@ -52,11 +56,11 @@ class ParallelTasks():
 
             # Single command case
             if isinstance(task.commands, str):
-                scores.append(self._execute(task.commands))
+                scores.append(self._execute(task.commands, task.wd))
             # Multiple commands case
             else:
                 for command in task.commands:
-                    scores.append(self._execute(command))
+                    scores.append(self._execute(command, task.wd))
 
             # Only keep last score
             task.score = scores[-1]
@@ -93,7 +97,6 @@ class ParallelTasks():
                 yield task
 
     def end(self):
-        print("STOP!")
         # Make them stooop!
         for q in self.taskQueues:
             q.put('STOP')

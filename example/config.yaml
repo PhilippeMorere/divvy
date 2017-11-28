@@ -3,7 +3,7 @@ experiment:
     description:
         Describing what the experiment is about and what the experimenter
         aims to achieve.
-    workdir: /home/phil/workspace/sandbox/divvy/
+    workdir: /home/phil/workspace/divvy2.0/
     fixed:
         a: 0.1
         b: 20.0
@@ -14,7 +14,7 @@ experiment:
         optimised:
             optimiser: "GridSearch"
             opt_params:
-                gridRes: 5
+                gridRes: 15
             params:
                 y: linear(0, 3.14)
                 z: logscale(1, 10)
@@ -22,4 +22,4 @@ experiment:
             commands:
                 - python example/dummyExperiment.py ${x} ${y} ${z}
         repeat: 10
-    workers: 2
+    workers: 3

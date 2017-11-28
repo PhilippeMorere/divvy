@@ -6,12 +6,13 @@ import re
 
 
 class Node:
-    def __init__(self, children, commands, repeat):
+    def __init__(self, children, commands, repeat, wd):
         self.children = [] if children is None else children
         self.repeat = repeat
         self.commands = commands
         self.runningTasks = []
         self.finishedTasks = []
+        self.wd = wd
 
     def isTaskReady(self):
         """
@@ -94,10 +95,14 @@ class Node:
         newParams.update(paramsB)
         return newParams
 
+    def _createTask(self, params, commands=None, loc=None):
+        return Task(self._parseCommand(params, commands), params,
+                    loc=loc, wd=self.wd)
+
 
 class ComparisonNode(Node):
-    def __init__(self, params, children, commands, repeat):
-        super().__init__(children, commands, repeat)
+    def __init__(self, params, children, commands, repeat, workdir):
+        super().__init__(children, commands, repeat, workdir)
         # if len(params) == 1:
         #    self.allParamVals = list(params.values())[0]
         # else:
@@ -114,7 +119,7 @@ class ComparisonNode(Node):
                     joinedParams = self._joinParams(paramsNode, child.params)
                     self.children.append(OptimisedNode(
                         child.optimiserName, child.optParams, joinedParams,
-                        child.children, child.commands, child.repeat))
+                        child.children, child.commands, child.repeat, workdir))
 
     def getNextTasks(self, parentParams):
         # If node is a leaf, return all tasks
@@ -125,7 +130,7 @@ class ComparisonNode(Node):
                 joinedParams = self._joinParams(parentParams, paramsNode)
                 for j in range(self.repeat):
                     idt = i * len(self.allParamVals) + j
-                    t = Task(self._parseCommand(joinedParams))
+                    t = self._createTask(joinedParams)
                     self.runningTasks.append(t)
                     tasks[idt] = t
             # Node is done here.
@@ -146,8 +151,7 @@ class ComparisonNode(Node):
                     print("Optimisation done. Best parameters are {}".format(
                         bestParams))
                     for _ in range(self.repeat):
-                        t = Task(self._parseCommand(
-                            bestParams, child.commands), bestParams)
+                        t = self._createTask(bestParams, child.commands)
                         self.runningTasks.append(t)
                         tasks.append(t)
                     del self.children[i]
@@ -183,8 +187,8 @@ class ComparisonNode(Node):
 
 class OptimisedNode(Node):
     def __init__(self, optimiserName, optParams, params, children, commands,
-                 repeat):
-        super().__init__(children, commands, repeat)
+                 repeat, workdir):
+        super().__init__(children, commands, repeat, workdir)
         self.optimiserName = optimiserName
         self.optParams = optParams
         self.params = params
@@ -249,7 +253,7 @@ class OptimisedNode(Node):
         newParams = self._joinParams(allFixedParams, paramVals)
 
         # Create task
-        t = Task(self._parseCommand(newParams), newParams, loc)
+        t = self._createTask(newParams, loc=loc)
         self.runningTasks.append(t)
         return [t]
 

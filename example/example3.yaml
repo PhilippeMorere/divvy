@@ -1,25 +1,22 @@
 experiment:
-    name: Dummy experiment
+    name: Comparison with one optimisation
     description:
-        Describing what the experiment is about and what the experimenter
-        aims to achieve.
+      Method comparison with GridSearch optimisation over some parameters.
     workdir: /home/phil/workspace/divvy2.0/
     fixed:
         a: 0.1
-        b: 20.0
-        c: "ABC"
     comparison:
         params:
-          x: [0.01, 0.1, 1.0, 10.0]
+          method: ["methodA", "methodB", "methodC"]
         optimised:
             optimiser: "GridSearch"
             opt_params:
                 gridRes: 10
             params:
-                d: [1,2]
+                u: [1,2]
                 y: linear(0, 3.14)
                 z: logscale(1, 10)
             commands:
-                - python example/dummyExperiment.py ${x} ${y} ${z}
+                - python example/example3.py ${a} ${method} ${u} ${y} ${z}
         repeat: 10
     workers: 3

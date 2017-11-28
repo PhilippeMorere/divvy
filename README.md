@@ -1,6 +1,6 @@
 Divvy
 ==========================
-Description here
+Divvy is a Python library for parallelized optimisation of multiple experiments - if you can execute your experiment with commandline you can Divvy it!. It allows for efficient testing by allowing smarter optimisation of experimental parameters in a distribution fashion. Divvy supports a generic interface to a variety of standard optimisers with a focus on Bayesian Optimisation for data efficient parameter learning. 
 
 ## Installation
 ### Dependencies

@@ -58,6 +58,9 @@ def parseNode(elem, workdir, optimisedNode=False):
     optParams = None
     if "opt_params" in elem:
         optParams = elem["opt_params"]
+    elif optimisedNode:
+        print("Warning: no \"opt_params\" tag found for optimiser {}".
+              format(elem["optimiser"]))
     params = elem["params"]
 
     children = None
@@ -82,11 +85,14 @@ def parseToTaskTree(config):
 
     # Parse tree root
     if "comparison" in config:
+        if "optimised" in config:
+            raise ValueError("Experiment cannot contain both \"comparison\" " +
+                             "and \"optimisation\" tags as root.")
         return parseNode(config["comparison"], workdir), fixedParams
     elif "optimised" in config:
         return parseNode(config["optimised"], workdir, True), fixedParams
     else:
-        raise ValueError("Could not either elements \"comparison\" or " +
+        raise ValueError("Could not find either elements \"comparison\" or " +
                          "\"optimised\" in \"experiment\"")
 
 

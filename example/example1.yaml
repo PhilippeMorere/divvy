@@ -1,0 +1,16 @@
+experiment:
+    name: Comparing methods
+    description:
+        Running example1.py with different methods (A and B), with 10 repeats
+        for each method.
+    workdir: /home/phil/workspace/divvy2.0/
+    fixed:
+        a: 0.1
+        b: 20.0
+    comparison:
+        params:
+          method: ["methodA", "methodB"]
+        commands:
+          - python example/example1.py ${a} ${b} ${method}
+        repeat: 10
+    workers: 3

@@ -3,6 +3,7 @@ import math
 
 
 # TODO: Add BO
+# TODO: Add optimisers from swarmOpt
 
 def getOptimiser(optName, optParams, varLow, varHigh, varLogScale, catVals):
     if optName == "GridSearch":

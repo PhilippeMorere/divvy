@@ -113,7 +113,7 @@ class ComparisonNode(Node):
 
         # Create an optimisation node per param value
         self.children = []
-        if len(children) > 0:
+        if children is not None and len(children) > 0:
             for child in children:
                 for i, paramsNode in enumerate(self._nextParamVals()):
                     joinedParams = self._joinParams(paramsNode, child.params)
@@ -129,7 +129,7 @@ class ComparisonNode(Node):
                 # Combine node parameters with parent
                 joinedParams = self._joinParams(parentParams, paramsNode)
                 for j in range(self.repeat):
-                    idt = i * len(self.allParamVals) + j
+                    idt = j * len(self.allParamVals) + i
                     t = self._createTask(joinedParams)
                     self.runningTasks.append(t)
                     tasks[idt] = t

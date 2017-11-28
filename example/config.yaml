@@ -14,8 +14,9 @@ experiment:
         optimised:
             optimiser: "GridSearch"
             opt_params:
-                gridRes: 15
+                gridRes: 10
             params:
+                d: [1,2]
                 y: linear(0, 3.14)
                 z: logscale(1, 10)
             repeat: 3

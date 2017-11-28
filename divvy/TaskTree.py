@@ -1,6 +1,6 @@
 from itertools import product
 from ParallelTasks import Task
-from Optimisers import GridSearchOptimiser
+from Optimisers import getOptimiser
 import numbers
 import re
 
@@ -201,6 +201,10 @@ class OptimisedNode(Node):
         # Fixed params
         self.fixedParams = {}
 
+        # Categorical variables
+        self.catNames = []
+        catVals = []
+
         # Continuous variables
         low = []
         high = []
@@ -213,11 +217,9 @@ class OptimisedNode(Node):
             if isinstance(v, numbers.Number):
                 self.fixedParams[k] = "{}".format(v)
             # List
-            elif re.match("\[(\d+\.?\d*)(,\s*\d+\.?\d*)*\]", v):
-                items = re.split("\[|,\s?|\]", v)[1:-1]
-                print(items)
-                print("Warning: this is not supported yet!")
-                # TODO: support this
+            elif isinstance(v, list):
+                catVals.append(v)
+                self.catNames.append(k)
             # Linear/Logscale
             elif "linear" in v or "logscale" in v:
                 items = re.split("\(|[ ]*,[ ]*|\)", v)
@@ -229,24 +231,17 @@ class OptimisedNode(Node):
             else:
                 self.fixedParams[k] = v
 
-        if self.optimiserName == "GridSearch":
-            if self.optParams is None or "gridRes" not in self.optParams:
-                raise ValueError("tag \"gridRes\" required in \"opt_params\"" +
-                                 " tag for GridSearch optimiser")
-            gridRes = self.optParams["gridRes"]
-            self.optimiser = GridSearchOptimiser(gridRes, low, high, logScale)
-        else:
-            raise ValueError("Unknown optimiser \"{}\"".
-                             format(self.optimiserName))
+        self.optimiser = getOptimiser(self.optimiserName, self.optParams,
+                                      low, high, logScale, catVals)
 
     def getNextTasks(self, parentParams):
         if not self.isInit:
             self._init()
         if not self.isDone():
-            loc = self.optimiser.nextLocation().reshape(-1)
+            loc = self.optimiser.nextLocation()
             paramVals = dict(zip(self.varNames, loc))
         else:
-            loc = self.optimiser.getBestLocation().reshape(-1)
+            loc = self.optimiser.getBestLocation()
             paramVals = dict(zip(self.varNames, loc))
 
         allFixedParams = self._joinParams(self.fixedParams, parentParams)

@@ -1,8 +1,7 @@
 experiment:
     name: Simple meta-optimisation
     description:
-        Running example1.py with different methods (A and B), with 10 repeats
-        for each method.
+        Pure optimisation for parameters x and y.
     workdir: /home/phil/workspace/divvy2.0/
     fixed:
         a: 0.1

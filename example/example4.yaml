@@ -1,0 +1,31 @@
+experiment:
+    name: Comparison with double optimisation
+    description:
+      Parameters x and y are optimised independently of each other, with
+      default values specified as fixed parameters.
+    workdir: /home/phil/workspace/divvy2.0/
+    fixed:
+        a: 0.1
+        u: 2
+        y: 0
+        z: 1
+    comparison:
+        params:
+          method: ["methodA", "methodB", "methodC"]
+        optimised:
+          - optimiser: "GridSearch"
+            opt_params:
+                gridRes: 20
+            params:
+                y: linear(0, 3.14)
+            commands:
+                - python example/example3.py ${a} ${method} ${u} ${y} ${z}
+          - optimiser: "GridSearch"
+            opt_params:
+                gridRes: 20
+            params:
+                z: logscale(1, 10)
+            commands:
+                - python example/example3.py ${a} ${method} ${u} ${y} ${z}
+        repeat: 10
+    workers: 3

@@ -1,0 +1,20 @@
+experiment:
+    name: Simple meta-optimisation
+    description:
+        Running example1.py with different methods (A and B), with 10 repeats
+        for each method.
+    workdir: /home/phil/workspace/divvy2.0/
+    fixed:
+        a: 0.1
+        b: 20.0
+    optimised:
+        optimiser: "GridSearch"
+        opt_params:
+          gridRes: 5
+        params:
+          method: ["methodA", "methodB"]
+          x: linear(0,1)
+          y: logscale(0.01, 10)
+        commands:
+          - python example/example2.py ${a} ${b} ${method} ${x} ${y}
+    workers: 3

@@ -138,7 +138,7 @@ def printComparisonSummary(root):
 
     # Print table
     print("\n#####################\n# Comparison summary:" +
-          "\n#####################\n")
+          "\n#####################\nRepeats: {}\n".format(len(scores[0])))
     pprinttable(data)
 
 

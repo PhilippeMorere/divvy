@@ -3,6 +3,8 @@ from ParallelTasks import Task
 from Optimisers import getOptimiser
 import numbers
 import re
+from utils import pprinttable
+from collections import namedtuple
 
 
 class Node:
@@ -148,8 +150,6 @@ class ComparisonNode(Node):
                     # Repeat experiment with best params N times, and remove
                     # child from tree.
                     bestParams = child.getBestParams()
-                    print("Optimisation done. Best parameters are {}".format(
-                        bestParams))
                     for _ in range(self.repeat):
                         t = self._createTask(bestParams, child.commands)
                         self.runningTasks.append(t)
@@ -195,14 +195,14 @@ class OptimisedNode(Node):
         self.optimiser = None
         self.isInit = False
 
-    def _init(self):
+    def _init(self, parentParams):
         self.isInit = True
 
         # Fixed params
-        self.fixedParams = {}
+        self.fixedParams = dict(parentParams)
 
         # Categorical variables
-        self.catNames = []
+        catNames = []
         catVals = []
 
         # Continuous variables
@@ -219,7 +219,7 @@ class OptimisedNode(Node):
             # List
             elif isinstance(v, list):
                 catVals.append(v)
-                self.catNames.append(k)
+                catNames.append(k)
             # Linear/Logscale
             elif "linear" in v or "logscale" in v:
                 items = re.split("\(|[ ]*,[ ]*|\)", v)
@@ -230,13 +230,14 @@ class OptimisedNode(Node):
             # Fixed params
             else:
                 self.fixedParams[k] = v
+        self.varNames.extend(catNames)
 
         self.optimiser = getOptimiser(self.optimiserName, self.optParams,
                                       low, high, logScale, catVals)
 
     def getNextTasks(self, parentParams):
         if not self.isInit:
-            self._init()
+            self._init(parentParams)
         if not self.isDone():
             loc = self.optimiser.nextLocation()
             paramVals = dict(zip(self.varNames, loc))
@@ -269,3 +270,18 @@ class OptimisedNode(Node):
 
     def _updateNodeFinishedTask(self, task):
         self.optimiser.update(task.loc, task.score)
+        if self.optimiser.isDone():
+            self._printOptimisationSummary()
+
+    def _printOptimisationSummary(self):
+        bestLoc = self.optimiser.getBestLocation()
+        prettyLoc = ["{:0.4f}".format(e) if isinstance(e, numbers.Number)
+                     else e for e in bestLoc]
+        print("\n#######################\n# Optimisation summary:" +
+              "\n#######################")
+        print("Parent parameters:")
+        Row = namedtuple('Row', self.fixedParams.keys())
+        pprinttable([Row(*self.fixedParams.values())])
+        print("Optimal values:")
+        Row = namedtuple('Row', self.varNames)
+        pprinttable([Row(*prettyLoc)])

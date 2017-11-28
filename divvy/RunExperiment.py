@@ -166,7 +166,6 @@ def main():
     # Parse Yaml config to tree
     root, fixedParams = parseToTaskTree(config)
 
-    # TODO: Syntax/config checking before experiments start
     # TODO: Log experiments and results in database
     print("Starting experiments.")
     startTime = time.time()

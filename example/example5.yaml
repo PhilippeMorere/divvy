@@ -1,0 +1,31 @@
+experiment:
+    name: Comparison with nested optimisation
+    description:
+      Parameters z and u are optimised jointly. Parameter y is then optimised
+      based on the best value of z and u.
+    workdir: /home/phil/workspace/divvy2.0/
+    fixed:
+        a: 0.1
+        u: 2
+        y: 0
+        z: 1
+    comparison:
+        params:
+          method: ["methodA", "methodB", "methodC"]
+        optimised:
+          optimiser: "GridSearch"
+          opt_params:
+            gridRes: 5
+          params:
+            y: linear(11, 15)
+          optimised:
+            optimiser: "GridSearch"
+            opt_params:
+              gridRes: 7
+            params:
+              u: [1, 2]
+              z: linear(1, 7)
+            commands:
+              - python example/example3.py ${a} ${method} ${y} ${u} ${z}
+        repeat: 10
+    workers: 3

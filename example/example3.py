@@ -3,8 +3,8 @@ import random
 
 a = float(sys.argv[1])
 method = sys.argv[2]
-u = float(sys.argv[3])
-y = float(sys.argv[4])
+y = float(sys.argv[3])
+u = float(sys.argv[4])
 z = float(sys.argv[5])
 
 score = 0

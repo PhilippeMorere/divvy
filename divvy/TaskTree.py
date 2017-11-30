@@ -18,17 +18,10 @@ class Node:
 
     def isTaskReady(self):
         """
-        Whether a taks is ready in the tree. Method getNextTask will return
-        task immediately.
+        Whether a taks is ready in the tree. If a task is ready, method
+        getNextTask will return tasks immediately.
         """
-        if self._isNodeTaskReady():
-            return True
-
-        if len(self.children) > 0:
-            for child in self.children:
-                if child.isTaskReady():
-                    return True
-        return False
+        raise NotImplementedError
 
     def getNextTasks(self, parentParams=None):
         """
@@ -36,54 +29,16 @@ class Node:
         """
         raise NotImplementedError
 
-    def updateFinishedTask(self, task):
-        """
-        Updates a task in the tree starting from this node
-        """
-        # Search this node
-        for t in self.runningTasks:
-            if t.uniqueId == task.uniqueId:
-                self._updateNodeFinishedTask(task)
-                self.runningTasks.remove(t)
-                return
-        # ...or Delegate to children
-        for child in self.children:
-            child.updateFinishedTask(task)
-
     def isDone(self):
         """
         Whether this node and all its children are finished
         """
-        if len(self.children) > 0:
-            for child in self.children:
-                if not child.isDone():
-                    return False
-        return self._isNodeDone()
-
-    def _isNodeDone(self):
-        """
-        Whether this node is finished
-        """
         raise NotImplementedError
 
-    def _isNodeTaskReady(self):
-        """
-        Whether this node has a taks ready
-        """
-        raise NotImplementedError
-
-    def _updateNodeFinishedTask(self, task):
-        """
-        Updates a task from this node
-        """
-        raise NotImplementedError
-
-    def _parseCommand(self, params, commands=None):
+    def _parseCommands(self, params, commands):
         """
         Replaces parameters with their value in commands
         """
-        if commands is None:
-            commands = self.commands
         filledCommands = [None] * len(commands)
         for i, command in enumerate(commands):
             for k, v in params.items():
@@ -98,7 +53,15 @@ class Node:
         return newParams
 
     def _createTask(self, params, commands=None, loc=None):
-        return Task(self._parseCommand(params, commands), params,
+        # Get nearest command
+        if commands is None:
+            node = self
+            while node.commands is None:
+                node = node.children[0]
+            commands = node.commands
+
+        # Parse command and create task
+        return Task(self._parseCommands(params, commands), params,
                     loc=loc, wd=self.wd)
 
 
@@ -145,15 +108,19 @@ class ComparisonNode(Node):
             for i in range(len(self.children)-1, -1, -1):
                 child = self.children[i]
                 if child.isTaskReady():
+                    # TODO: shouldn't these params be joinedParams?
                     tasks.extend(child.getNextTasks(parentParams))
                 elif child.isDone():
                     # Repeat experiment with best params N times, and remove
                     # child from tree.
                     bestParams = child.getBestParams()
-                    for _ in range(self.repeat):
-                        t = self._createTask(bestParams, child.commands)
-                        self.runningTasks.append(t)
-                        tasks.append(t)
+                    t = self._createTask(bestParams, child.commands)
+                    self.runningTasks.append(t)
+                    tasks.append(t)
+                    for _ in range(self.repeat - 1):
+                        newT = t.clone()
+                        self.runningTasks.append(newT)
+                        tasks.append(newT)
                     del self.children[i]
             # If last done was removed, mark as done
             if len(self.children) == 0:
@@ -169,7 +136,7 @@ class ComparisonNode(Node):
 
     def isTaskReady(self):
         if len(self.children) == 0:
-            return not self._isNodeDone()
+            return not self.done
         for child in self.children:
             if child.isTaskReady():
                 return True
@@ -178,11 +145,23 @@ class ComparisonNode(Node):
                 return True
         return False
 
-    def _isNodeDone(self):
-        return self.done
+    def isDone(self):
+        return len(self.children) == 0 and self.done
 
-    def _updateNodeFinishedTask(self, task):
-        self.finishedTasks.append(task)
+    def updateFinishedTask(self, task):
+        """
+        Updates a task in the tree starting from this node
+        """
+        # Search this node
+        for t in self.runningTasks:
+            if t.uniqueId == task.uniqueId:
+                self.finishedTasks.append(task)
+                self.runningTasks.remove(t)
+                return True
+        # ...or Delegate to children
+        for child in self.children:
+            if child.updateFinishedTask(task):
+                return True
 
 
 class OptimisedNode(Node):
@@ -192,8 +171,10 @@ class OptimisedNode(Node):
         self.optimiserName = optimiserName
         self.optParams = optParams
         self.params = params
+        self.childrenOpt = []
         self.optimiser = None
         self.isInit = False
+        self.bestChildParams = None
 
     def _init(self, parentParams):
         self.isInit = True
@@ -238,50 +219,129 @@ class OptimisedNode(Node):
     def getNextTasks(self, parentParams):
         if not self.isInit:
             self._init(parentParams)
+
+        # If child still running, defer next task to it
+        for i in range(len(self.childrenOpt)-1, -1, -1):
+            childOpt = self.childrenOpt[i]
+            if childOpt.isTaskReady():
+                # Get next task from child
+                return childOpt.getNextTasks({})
+
+        # Otherwise, get next location from this node
         if not self.isDone():
             loc = self.optimiser.nextLocation()
-            paramVals = dict(zip(self.varNames, loc))
-        else:
-            loc = self.optimiser.getBestLocation()
             paramVals = dict(zip(self.varNames, loc))
 
         allFixedParams = self._joinParams(self.fixedParams, parentParams)
         newParams = self._joinParams(allFixedParams, paramVals)
 
-        # Create task
-        t = self._createTask(newParams, loc=loc)
-        self.runningTasks.append(t)
-        return [t]
+        # If node has children, create new optimisers
+        if len(self.children) > 0 and not self.isDone():
+            self.runningTasks.append(Task([], "", loc))
+            for child in self.children:
+                # joinedParams = self._joinParams(self.params, child.params)
+                optNode = OptimisedNode(
+                        child.optimiserName, child.optParams, child.params,
+                        child.children, child.commands, child.repeat, self.wd)
+                optNode._init(newParams)
+                self.childrenOpt.append(optNode)
+            return []
+
+        # Otherwise, create task
+        else:
+            t = self._createTask(newParams, loc=loc)
+            self.runningTasks.append(t)
+            return [t]
 
     def getBestParams(self):
         """
         Returns best parameters after optimisation is finished
         """
         loc = self.optimiser.getBestLocation()
+        allParams = dict(self.fixedParams)
         bestParams = dict(zip(self.varNames, loc))
-        bestParams.update(self.fixedParams)
-        return bestParams
+        allParams.update(bestParams)
+        if self.bestChildParams is not None:
+            allParams.update(self.bestChildParams)
+        return allParams
 
-    def _isNodeTaskReady(self):
-        return len(self.runningTasks) == 0 and not self.isDone()
+    def isTaskReady(self):
+        # Check children first
+        if len(self.childrenOpt) > 0:
+            for child in self.childrenOpt:
+                if child.isTaskReady() or child.isDone():
+                    return True
+            return False
 
-    def _isNodeDone(self):
-        return self.optimiser is not None and self.optimiser.isDone()
+        # Check this node
+        if self.optimiser is None:
+            return True
+        return len(self.runningTasks) == 0 and not self.optimiser.isDone()
 
-    def _updateNodeFinishedTask(self, task):
-        self.optimiser.update(task.loc, task.score)
+    def isDone(self):
+        if self.optimiser is None:
+            return False
+
+        # If one child is not done, node is not done
+        if len(self.childrenOpt) > 0:
+            for child in self.childrenOpt:
+                if not child.isDone():
+                    return False
+
+            # If all children are done. Only done if optimiser is done
+            return self.optimiser.isDone()
+
+        # When no children. Only done if optimiser is done
+        return len(self.childrenOpt) == 0 and self.optimiser.isDone()
+
+    def updateFinishedTask(self, task):
+        # Search this node
+        for t in self.runningTasks:
+            if t.uniqueId == task.uniqueId:
+                self._updateNodeFinishedTask(task.loc, task.score)
+                self.runningTasks.remove(t)
+                return
+
+        # ...or Delegate to children
+        for child in self.childrenOpt:
+            child.updateFinishedTask(task)
+
+        # If node has children and all are done, update this node with children
+        # best locations
+        if len(self.childrenOpt) > 0:
+            for child in self.childrenOpt:
+                if not child.isDone():
+                    return
+            score = 0
+            bestChildParams = {}
+            for i in range(len(self.childrenOpt)-1, -1, -1):
+                childOpt = self.childrenOpt[i]
+                if childOpt.isDone():
+                    # Get child best location and score to update this node
+                    score += childOpt.optimiser.getBestScore()
+                    bestChildParams.update(childOpt.getBestParams())
+                    # TODO: multi-input optimisation with additive scores?
+                    del self.childrenOpt[i]
+            self.bestChildParams = bestChildParams
+            t = self.runningTasks[0]
+            self.runningTasks.remove(t)
+            self._updateNodeFinishedTask(t.loc, score)
+
+    def _updateNodeFinishedTask(self, loc, score):
+        self.optimiser.update(loc, score)
         if self.optimiser.isDone():
             self._printOptimisationSummary()
 
     def _printOptimisationSummary(self):
-        bestLoc = self.optimiser.getBestLocation()
-        prettyLoc = ["{:0.4f}".format(e) if isinstance(e, numbers.Number)
-                     else e for e in bestLoc]
         print("\n#######################\n# Optimisation summary:" +
               "\n#######################")
         print("Parent parameters:")
         Row = namedtuple('Row', self.fixedParams.keys())
         pprinttable([Row(*self.fixedParams.values())])
+
         print("Optimal values:")
+        bestLoc = self.optimiser.getBestLocation()
+        prettyLoc = ["{:0.4f}".format(e) if isinstance(e, numbers.Number)
+                     else e for e in bestLoc]
         Row = namedtuple('Row', self.varNames)
         pprinttable([Row(*prettyLoc)])

@@ -142,10 +142,6 @@ def printComparisonSummary(root):
     pprinttable(data)
 
 
-def printOptimisationSummary(root):
-    pass
-
-
 def main():
     # Parse argument(s)
     parser = argparse.ArgumentParser()
@@ -200,8 +196,6 @@ def main():
     # Print summary information
     if isinstance(root, ComparisonNode):
         printComparisonSummary(root)
-    else:
-        printOptimisationSummary(root)
     return 0
 
 

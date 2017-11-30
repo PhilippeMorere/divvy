@@ -14,6 +14,9 @@ class Task():
         self.wd = wd  # Working directory
         self.loc = loc  # Location used by optimisers (parameter values)
 
+    def clone(self):
+        return Task(self.commands, self.params, self.loc, self.wd)
+
 
 class ParallelTasks():
     def __init__(self, noWorkers=3):

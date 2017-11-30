@@ -84,6 +84,9 @@ class AbsOptimiser:
     def getBestLocation(self):
         return self.bestLocation
 
+    def getBestScore(self):
+        return self.bestLocationVal
+
     def isDone(self):
         """
         Whether the optimiser is finished
@@ -116,12 +119,10 @@ class GridSearchOptimiser(AbsOptimiser):
             restId = restId // len(self.gridDims[i])
             loc[i] = self.gridDims[i][dimId]
 
-        self.locId += 1
         return loc
 
     def _update(self, loc, val):
-        # Nothing to do
-        pass
+        self.locId += 1
 
     def isDone(self):
         noPoints = np.prod([len(self.gridDims[i])

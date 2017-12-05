@@ -1,0 +1,23 @@
+experiment:
+    name: Meta-optimisation with Bayesian Optimisation
+    description:
+        Pure optimisation for parameters x and y.
+    workdir: /home/phil/workspace/divvy2.0/
+    optimised:
+        optimiser: "BayesianOptimisation"
+        opt_params:
+          n_iterations: 10
+          n_iter_relearn: 5
+          n_init_samples: 2
+          l_type: L_MCMC
+          kernel_name: kMaternISO5
+          kernel_hp_std: 10
+          score_type: SC_LOOCV
+          init_method: 1
+          noise: 0.1
+        params:
+          x: linear(-1,1)
+          y: linear(-1,1)
+        commands:
+          - python example/example6.py ${x} ${y}
+    workers: 1

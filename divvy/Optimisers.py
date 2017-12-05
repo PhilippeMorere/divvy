@@ -1,3 +1,5 @@
+from multiprocessing import Process, Queue, Manager
+import bayesopt
 import numpy as np
 import math
 
@@ -13,6 +15,9 @@ def getOptimiser(optName, optParams, varLow, varHigh, varLogScale, catVals):
         gridRes = optParams["gridRes"]
         return GridSearchOptimiser(gridRes, varLow, varHigh, varLogScale,
                                    catVals)
+    elif optName == "BayesianOptimisation":
+        return BayesianOptimisationOptimiser(optParams, varLow, varHigh,
+                                             varLogScale, catVals)
     else:
         raise ValueError("Unknown optimiser \"{}\"".format(optName))
 
@@ -39,6 +44,8 @@ class AbsOptimiser:
         self.catVals = catVals
 
     def _toOriginalScale(self, loc):
+        if loc is None:
+            return None
         newLoc = list(loc)
         for i in range(len(self.logScale)):
             if self.logScale[i]:
@@ -128,3 +135,115 @@ class GridSearchOptimiser(AbsOptimiser):
         noPoints = np.prod([len(self.gridDims[i])
                            for i in range(len(self.gridDims))])
         return self.locId >= noPoints
+
+
+class ThreadedOptimiser(AbsOptimiser):
+    def __init__(self, optParams, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.optFctr = 1.0  # Changed for minimisation/maximisation
+
+        # Managing workers
+        self.m = Manager()
+        self.availableUpdateEvent = self.m.Event()
+        self.updateFoundEvent = self.m.Event()
+        self.scoreDict = self.m.dict()
+        self.managerLock = self.m.Lock()
+
+        # For communication
+        self.locationQueue = Queue()
+        self.doneQueue = Queue()
+
+        # Start worker
+        p = Process(target=self.worker, args=[optParams])
+        p.start()
+
+    def _hashLoc(self, loc):
+        locStr = ' '.join(['{:0.9f}'.format(l) for l in loc])
+        return locStr
+
+    def _objectiveFunction(self, loc):
+        # Register with manager dictionary
+        locStr = self._hashLoc(loc)
+        with self.managerLock:
+            if locStr in self.scoreDict:
+                if isinstance(self.scoreDict[locStr], list):
+                    self.scoreDict.extend([None])
+                else:
+                    self.scoreDict[locStr] = [self.scoreDict[locStr], None]
+            else:
+                self.scoreDict[locStr] = None
+        # Add new loc to location queue
+        self.locationQueue.put(loc)
+
+        # Wait for socre with corresponding loc to arrive
+        foundUpdate = False
+        score = None
+        while not foundUpdate:
+            self.availableUpdateEvent.wait()
+            # Try and retrieve socre. If score found, unregister
+            with self.managerLock:
+                if isinstance(self.scoreDict[locStr], list):
+                    score = self.scoreDict[locStr][0]
+                    if score is not None:
+                        foundUpdate = True
+                        if len(self.scoreDict[locStr]) == 1:
+                            del self.scoreDict[locStr]
+                        else:
+                            del self.scoreDict[locStr][0]
+                else:
+                    score = self.scoreDict[locStr]
+                    if score is not None:
+                        foundUpdate = True
+                        del self.scoreDict[locStr]
+                if foundUpdate:
+                    self.availableUpdateEvent.clear()
+                    self.updateFoundEvent.set()
+                    break
+            self.updateFoundEvent.wait()
+
+        return self.optFctr * score
+
+    def worker(self, optParams):
+        print(optParams)
+        self._worker(optParams)
+        self.doneQueue.put("DONE")
+        self.locationQueue.put(None)
+
+    def _worker(self, optParams):
+        """
+        Worker calling any "blocking" optimisation library.
+        """
+        raise NotImplementedError
+
+    def _nextLocation(self):
+        v = self.locationQueue.get()
+        if v is None:
+            return None
+        else:
+            return v
+
+    def _update(self, loc, val):
+        # Find the right worker
+        locStr = self._hashLoc(loc)
+        with self.managerLock:
+            # Give worker the score
+            if isinstance(self.scoreDict[locStr], list):
+                self.scoreDict[locStr][0] = val
+            else:
+                self.scoreDict[locStr] = val
+            self.updateFoundEvent.clear()
+            self.availableUpdateEvent.set()
+
+    def isDone(self):
+        return self.doneQueue.qsize() > 0
+
+
+class BayesianOptimisationOptimiser(ThreadedOptimiser):
+    def _worker(self, optParams):
+        print(optParams)
+        dim = len(self.low)
+        lb = np.array(self.low)
+        ub = np.array(self.high)
+        self.optFctr = -1  # Because bayesopt does minimisation
+        y, x, err = bayesopt.optimize(self._objectiveFunction, dim, lb, ub,
+                                      optParams)

@@ -5,6 +5,8 @@ Divvy is a Python library for parallelized optimisation of multiple experiments 
 ## Installation
 ### Dependencies
 * python-yaml
+* numpy
+* bayesopt (https://bitbucket.org/rmcantin/bayesopt)
 
 ### Divvy
 Global installation:
@@ -18,7 +20,13 @@ python setup.py install --user
 
 ## Running
 ```
-divvy <path/to/config/file>
+divvy <path/to/config/file.yaml>
 ```
+
 ## Config file syntax
-An example of configuration file file is given in `examples/config.yaml`.
+Examples of configuration files and scripts are given in the `examples` directory.
+
+### Optimisers
+Supported optimisers are:
+* Grid search
+* Bayesian Optimisation

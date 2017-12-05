@@ -9,6 +9,7 @@ from swarmops.LUS import LUS
 import numpy as np
 import math
 
+
 swarmopsOptimisers = {"ParticleSwarmOptimisation": PSO,
                       "DifferentialEvolution": DE,
                       "ManyOptimisingLiaisons": MOL,
@@ -25,9 +26,15 @@ def getOptimiser(optName, optParams, varLow, varHigh, varLogScale, catVals):
         return GridSearchOptimiser(optName, gridRes, varLow, varHigh,
                                    varLogScale, catVals)
     elif optName == "BayesianOptimisation":
+        if len(catVals) > 0:
+            raise ValueError("\"BayesianOptimisation\" optimiser cannot " +
+                             "handle categorical variables.")
         return BayesianOptimisationOptimiser(optName, optParams, varLow,
-                                             varHigh, varLogScale, catVals)
+                                             varHigh, varLogScale, None)
     elif optName in swarmopsOptimisers.keys():
+        if len(catVals) > 0:
+            raise ValueError("\"{}\" optimiser".format(optName) +
+                             " cannot handle categorical variables.")
         return SwarmOpsOptimiser(optName, optParams, varLow, varHigh,
                                  varLogScale, catVals)
     else:

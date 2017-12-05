@@ -27,9 +27,11 @@ divvy <path/to/config/file.yaml>
 ## Config file syntax
 Examples of configuration files and scripts are given in the `examples` directory.
 
-### Optimisers
-Supported optimisers are:
+### List of supported optimisers
+#### Continuous and/or discrete variables
 * GridSearch
+
+#### Continuous variables variables only
 * BayesianOptimisation
 * ParticleSwarmOptimisation
 * DifferentialEvolution

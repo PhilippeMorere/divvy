@@ -1,11 +1,20 @@
 from multiprocessing import Process, Queue, Manager
 import bayesopt
+from swarmops.Problem import Problem
+from swarmops.PSO import PSO
+from swarmops.PSO import MOL
+from swarmops.DE import DE
+from swarmops.PS import PS
+from swarmops.LUS import LUS
 import numpy as np
 import math
 
+swarmopsOptimisers = {"ParticleSwarmOptimisation": PSO,
+                      "DifferentialEvolution": DE,
+                      "ManyOptimisingLiaisons": MOL,
+                      "PatternSearch": PS,
+                      "LocalUnimodalSampling": LUS}
 
-# TODO: Add BO
-# TODO: Add optimisers from swarmOpt
 
 def getOptimiser(optName, optParams, varLow, varHigh, varLogScale, catVals):
     if optName == "GridSearch":
@@ -13,21 +22,26 @@ def getOptimiser(optName, optParams, varLow, varHigh, varLogScale, catVals):
             raise ValueError("tag \"gridRes\" required in \"opt_params\"" +
                              " tag for GridSearch optimiser")
         gridRes = optParams["gridRes"]
-        return GridSearchOptimiser(gridRes, varLow, varHigh, varLogScale,
-                                   catVals)
+        return GridSearchOptimiser(optName, gridRes, varLow, varHigh,
+                                   varLogScale, catVals)
     elif optName == "BayesianOptimisation":
-        return BayesianOptimisationOptimiser(optParams, varLow, varHigh,
-                                             varLogScale, catVals)
+        return BayesianOptimisationOptimiser(optName, optParams, varLow,
+                                             varHigh, varLogScale, catVals)
+    elif optName in swarmopsOptimisers.keys():
+        return SwarmOpsOptimiser(optName, optParams, varLow, varHigh,
+                                 varLogScale, catVals)
     else:
         raise ValueError("Unknown optimiser \"{}\"".format(optName))
 
 
 class AbsOptimiser:
-    def __init__(self, low, high, logScale=False, catVals=[]):
+    def __init__(self, optName, low, high, logScale=False, catVals=[]):
         """
         :param logScale: Mask specifying if corresponding dimension is on a
         log scale.
         """
+        self.optName = optName
+
         self.logScale = logScale
         if not isinstance(logScale, list):
             self.logScale = [logScale] * len(high)
@@ -102,8 +116,8 @@ class AbsOptimiser:
 
 
 class GridSearchOptimiser(AbsOptimiser):
-    def __init__(self, gridRes, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, optName, gridRes, *args, **kwargs):
+        super().__init__(optName, *args, **kwargs)
         self.gridRes = gridRes
         self.gridDims = []
 
@@ -138,8 +152,8 @@ class GridSearchOptimiser(AbsOptimiser):
 
 
 class ThreadedOptimiser(AbsOptimiser):
-    def __init__(self, optParams, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, optName, optParams, *args, **kwargs):
+        super().__init__(optName, *args, **kwargs)
         self.optFctr = 1.0  # Changed for minimisation/maximisation
 
         # Managing workers
@@ -204,7 +218,6 @@ class ThreadedOptimiser(AbsOptimiser):
         return self.optFctr * score
 
     def worker(self, optParams):
-        print(optParams)
         self._worker(optParams)
         self.doneQueue.put("DONE")
         self.locationQueue.put(None)
@@ -240,10 +253,37 @@ class ThreadedOptimiser(AbsOptimiser):
 
 class BayesianOptimisationOptimiser(ThreadedOptimiser):
     def _worker(self, optParams):
-        print(optParams)
         dim = len(self.low)
         lb = np.array(self.low)
         ub = np.array(self.high)
         self.optFctr = -1  # Because bayesopt does minimisation
         y, x, err = bayesopt.optimize(self._objectiveFunction, dim, lb, ub,
                                       optParams)
+
+
+class SwarmOpsOptimiser(ThreadedOptimiser):
+    class SwarmOpsProblem(Problem):
+        def __init__(self, objFn, *args, **kwargs):
+            super().__init__(*args,  **kwargs)
+            self.objFn = objFn
+
+        def fitness(self, x, limit=np.Infinity):
+            return self.objFn(x)
+
+    def _worker(self, optParams):
+        dim = len(self.low)
+        lb = np.array(self.low)
+        ub = np.array(self.high)
+        self.optFctr = -1  # Because swarmops does minimisation
+        minVal = optParams["max_score"] if "max_score" in optParams \
+            else np.Infinity
+        prob = SwarmOpsOptimiser.SwarmOpsProblem(self._objectiveFunction,
+                                                 "SwarmOps problem", dim,
+                                                 minVal, lb, ub)
+
+        if "n_iterations" not in optParams.keys():
+            raise ValueError("Specify 'n_iterations' tag for optimiser {}".
+                             format(self.optName))
+        n_iter = optParams["n_iterations"]
+        opt = swarmopsOptimisers[self.optName]
+        opt(problem=prob, max_evaluations=n_iter)

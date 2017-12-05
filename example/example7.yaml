@@ -1,0 +1,21 @@
+experiment:
+    name: Meta-optimisation with Swarmops library
+    description:
+        Pure optimisation for parameters x and y.
+    workdir: /home/phil/workspace/divvy2.0/
+    optimised:
+        optimiser: "LocalUnimodalSampling"
+          # "PatternSearch"
+          # "ManyOptimisingLiaisons"
+          # "DifferentialEvolution"
+          # "LocalUnimodalSampling"
+          # "ParticleSwarmOptimisation"
+        opt_params:
+          n_iterations: 100
+          max_score: 4.0
+        params:
+          x: linear(-1,1)
+          y: linear(-1,1)
+        commands:
+          - python example/example6.py ${x} ${y}
+    workers: 1

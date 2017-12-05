@@ -7,6 +7,7 @@ Divvy is a Python library for parallelized optimisation of multiple experiments 
 * python-yaml
 * numpy
 * bayesopt (https://bitbucket.org/rmcantin/bayesopt)
+* swarmops (https://github.com/Hvass-Labs/swarmops)
 
 ### Divvy
 Global installation:
@@ -28,5 +29,10 @@ Examples of configuration files and scripts are given in the `examples` director
 
 ### Optimisers
 Supported optimisers are:
-* Grid search
-* Bayesian Optimisation
+* GridSearch
+* BayesianOptimisation
+* ParticleSwarmOptimisation
+* DifferentialEvolution
+* ManyOptimisingLiaisons
+* PatternSearch
+* LocalUnimodalSampling

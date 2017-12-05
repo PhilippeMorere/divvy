@@ -175,6 +175,7 @@ class OptimisedNode(Node):
         self.optimiser = None
         self.isInit = False
         self.bestChildParams = None
+        self.summaryPrinted = False
 
     def _init(self, parentParams):
         self.isInit = True
@@ -230,6 +231,9 @@ class OptimisedNode(Node):
         # Otherwise, get next location from this node
         if not self.isDone():
             loc = self.optimiser.nextLocation()
+            if loc is None:
+                self._printOptimisationSummary()
+                return []
             paramVals = dict(zip(self.varNames, loc))
 
         allFixedParams = self._joinParams(self.fixedParams, parentParams)
@@ -333,11 +337,15 @@ class OptimisedNode(Node):
             self._printOptimisationSummary()
 
     def _printOptimisationSummary(self):
+        if self.summaryPrinted:
+            return
+        self.summaryPrinted = True
         print("\n#######################\n# Optimisation summary:" +
               "\n#######################")
         print("Parent parameters:")
-        Row = namedtuple('Row', self.fixedParams.keys())
-        pprinttable([Row(*self.fixedParams.values())])
+        if len(self.fixedParams) > 0:
+            Row = namedtuple('Row', self.fixedParams.keys())
+            pprinttable([Row(*self.fixedParams.values())])
 
         print("Optimal values:")
         bestLoc = self.optimiser.getBestLocation()

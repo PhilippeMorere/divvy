@@ -108,7 +108,6 @@ class ComparisonNode(Node):
             for i in range(len(self.children)-1, -1, -1):
                 child = self.children[i]
                 if child.isTaskReady():
-                    # TODO: shouldn't these params be joinedParams?
                     tasks.extend(child.getNextTasks(parentParams))
                 elif child.isDone():
                     # Repeat experiment with best params N times, and remove

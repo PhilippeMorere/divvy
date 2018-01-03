@@ -3,7 +3,7 @@ from divvy.ParallelTasks import Task
 from divvy.Optimisers import getOptimiser
 import numbers
 import re
-from utils import pprinttable
+from divvy.utils import pprinttable
 from collections import namedtuple
 
 

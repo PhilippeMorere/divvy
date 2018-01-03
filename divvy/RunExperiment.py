@@ -7,7 +7,7 @@ import time
 import numpy as np
 from divvy.ParallelTasks import ParallelTasks
 from divvy.TaskTree import ComparisonNode, OptimisedNode
-from utils import pprinttable, prettyTime
+from divvy.utils import pprinttable, prettyTime
 from collections import namedtuple
 
 

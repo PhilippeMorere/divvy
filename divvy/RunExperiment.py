@@ -5,8 +5,8 @@ import yaml
 import sys
 import time
 import numpy as np
-from ParallelTasks import ParallelTasks
-from TaskTree import ComparisonNode, OptimisedNode
+from divvy.ParallelTasks import ParallelTasks
+from divvy.TaskTree import ComparisonNode, OptimisedNode
 from utils import pprinttable, prettyTime
 from collections import namedtuple
 

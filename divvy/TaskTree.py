@@ -1,6 +1,6 @@
 from itertools import product
-from ParallelTasks import Task
-from Optimisers import getOptimiser
+from divvy.ParallelTasks import Task
+from divvy.Optimisers import getOptimiser
 import numbers
 import re
 from utils import pprinttable
